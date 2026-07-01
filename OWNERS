@@ -32,7 +32,17 @@
 # data within them will be kept sorted.
 
 owners:
+- asmitk01@in.ibm.com
 - pavithrabarithaya07@gmail.com
 
 reviewers:
+- asmitk01@in.ibm.com
 - pavithrabarithaya07@gmail.com
+
+openbmc:
+- name: Asmitha Karunanithi
+  email: asmitk01@in.ibm.com
+  discord: asmitha
+- name: Pavithra Barithaya
+  email: pavithrabarithaya07@gmail.com
+  discord: Pavithra B
