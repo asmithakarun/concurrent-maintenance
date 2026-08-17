@@ -9,6 +9,7 @@
 #include <sdbusplus/async/task.hpp>
 
 #include <memory>
+#include <string>
 
 namespace concurrent_maintenance
 {
@@ -36,7 +37,7 @@ class Manager
     sdbusplus::async::task<> watchReadyToRemove();
 
     // Create/remove CM object based on ReadyToRemove value
-    void manageCMObject(bool readyToRemove);
+    void manageCMObject(bool readyToRemove, const std::string& inventoryPath);
 
     // Allow unit tests to access private members
     friend class ManagerTest;

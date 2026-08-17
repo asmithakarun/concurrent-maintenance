@@ -39,10 +39,17 @@ sdbusplus::async::task<> Manager::watchReadyToRemove()
     /* Watch for property changes on all child objects under
      * /xyz/openbmc_project/inventory
      */
+
     sdbusplus::async::match matcher(
-        ctx, sdbusplus::bus::match::rules::propertiesChangedNamespace(
-                 "/xyz/openbmc_project/inventory",
-                 "xyz.openbmc_project.State.ReadyToRemove"));
+        ctx,
+        sdbusplus::bus::match::rules::type::signal()
+            .append(sdbusplus::bus::match::rules::path_namespace(
+                "/xyz/openbmc_project/inventory"))
+            .append(sdbusplus::bus::match::rules::member("PropertiesChanged"))
+            .append(sdbusplus::bus::match::rules::interface(
+                "org.freedesktop.DBus.Properties"))
+            .append(sdbusplus::bus::match::rules::argN(
+                0, "xyz.openbmc_project.State.ReadyToRemove")));
 
     lg2::info(
         "ReadyToRemove property watcher registered for all inventory objects");
@@ -63,11 +70,11 @@ sdbusplus::async::task<> Manager::watchReadyToRemove()
             }
 
             bool readyToRemove = std::get<bool>(it->second);
-            const auto& objectPath = msg.get_path();
+            const std::string inventoryPath = msg.get_path();
             lg2::info("ReadyToRemove property changed on {PATH}: {VALUE}",
-                      "PATH", objectPath, "VALUE", readyToRemove);
+                      "PATH", inventoryPath, "VALUE", readyToRemove);
 
-            manageCMObject(readyToRemove);
+            manageCMObject(readyToRemove, inventoryPath);
         }
         catch (const std::exception& e)
         {
@@ -78,22 +85,22 @@ sdbusplus::async::task<> Manager::watchReadyToRemove()
 }
 // NOLINTEND(clang-analyzer-core.uninitialized.Branch)
 
-void Manager::manageCMObject(bool readyToRemove)
+void Manager::manageCMObject(bool readyToRemove,
+                             const std::string& inventoryPath)
 {
-    // Only one CM at a time, reject if a CM is already in progress
+    // Single-CM guard: reject if a CM is already in progress
     if (currentCMObject)
     {
         lg2::error(
-            "CM is already in progress. Object already exists at path: {PATH}.",
-            "PATH", currentCMObject->getPath());
+            "CM is already in progress at {PATH}. Ignoring new request for {INV_PATH}.",
+            "PATH", currentCMObject->getPath(), "INV_PATH", inventoryPath);
         return;
     }
 
     const std::string path = readyToRemove ? cmRemoveObjectPath
                                            : cmAddObjectPath;
 
-    lg2::info("Creating CM object at {PATH}", "PATH", path);
-    currentCMObject = std::make_unique<CMObject>(ctx, path);
+    currentCMObject = std::make_unique<CMObject>(ctx, path, inventoryPath);
     lg2::info("CM object created at {PATH}", "PATH",
               currentCMObject->getPath());
 }

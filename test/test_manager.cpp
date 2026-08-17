@@ -24,9 +24,10 @@ class ManagerTest : public ::testing::Test
   protected:
     // Wrappers that the friend declaration grants access to, called from
     // test fixture methods — lambdas cannot use friend access directly.
-    static void callManageCMObject(Manager& mgr, bool readyToRemove)
+    static void callManageCMObject(Manager& mgr, bool readyToRemove,
+                                   const std::string& inventoryPath = "")
     {
-        mgr.manageCMObject(readyToRemove);
+        mgr.manageCMObject(readyToRemove, inventoryPath);
     }
 
     static const std::string& getCurrentCMObjectPath(Manager& mgr)
