@@ -8,12 +8,19 @@
 #include <sdbusplus/async/context.hpp>
 #include <sdbusplus/async/server.hpp>
 #include <sdbusplus/async/task.hpp>
+#include <xyz/openbmc_project/Association/Definitions/aserver.hpp>
 #include <xyz/openbmc_project/Common/Progress/aserver.hpp>
 
 #include <string>
 
 namespace concurrent_maintenance
 {
+
+// Template aliases required by server_t — both take (Instance, Server).
+template <typename Instance, typename Server>
+using AssocDefsAServer =
+    sdbusplus::aserver::xyz::openbmc_project::association::Definitions<Instance,
+                                                                       Server>;
 
 template <typename Instance, typename Server>
 using ProgressAServer =
@@ -28,7 +35,8 @@ using OperationStatus =
  *
  * Responsibilities:
  *   1. Own the D-Bus tracking object path for the operation.
- *   2. Publish the Progress D-Bus interface at that path.
+ *   2. Publish both Association.Definitions and Common.Progress on a single
+ *      D-Bus object at that path (one InterfacesAdded signal).
  *   3. Drive the remove or add sequence via execute().
  *   4. Update Progress state via updateStatus().
  *
@@ -42,7 +50,9 @@ using OperationStatus =
  *
  * Manager owns CMObject for the full operation lifetime.
  */
-class CMObject : public sdbusplus::async::server_t<CMObject, ProgressAServer>
+class CMObject :
+    public sdbusplus::async::server_t<CMObject, AssocDefsAServer,
+                                      ProgressAServer>
 {
   public:
     CMObject(sdbusplus::async::context& ctx, const std::string& objectPath,
@@ -51,7 +61,11 @@ class CMObject : public sdbusplus::async::server_t<CMObject, ProgressAServer>
     CMObject(const CMObject&) = delete;
     CMObject& operator=(const CMObject&) = delete;
 
-    ~CMObject() = default;
+    ~CMObject()
+    {
+        AssocDefsAServer<CMObject, Self>::emit_removed();
+        ProgressAServer<CMObject, Self>::emit_removed();
+    }
 
     /** @brief D-Bus object path for this operation. */
     const std::string& getPath() const

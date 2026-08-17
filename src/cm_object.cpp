@@ -18,16 +18,29 @@ namespace concurrent_maintenance
 
 CMObject::CMObject(sdbusplus::async::context& ctx,
                    const std::string& objectPath, const std::string& fruPath) :
-    sdbusplus::async::server_t<CMObject, ProgressAServer>(ctx,
-                                                          objectPath.c_str()),
+    sdbusplus::async::server_t<CMObject, AssocDefsAServer, ProgressAServer>(
+        ctx, objectPath.c_str()),
     ctx(ctx), objectPath(objectPath), fruPath(fruPath)
 {
-    lg2::info("CM object created at {PATH} for FRU {FRUPATH}", "PATH",
-              objectPath, "FRUPATH", fruPath);
+    /* Association:
+     * "maintenance_for"  — from the CM object, the endpoint is an inventory
+     *                      item
+     * "cm_object"  — from the inventory item, what points at it is a
+     *                cm_object
+     */
+    this->associations({{"maintenance_for", "cm_object", fruPath}});
 
     this->start_time(currentTimeMicroseconds());
     this->status(OperationStatus::NotStarted);
-    this->emit_added();
+
+    // With two interface bases both define emit_added() — qualify each
+    // explicitly so the compiler knows which vtable entry to signal.
+    AssocDefsAServer<CMObject, Self>::emit_added();
+    ProgressAServer<CMObject, Self>::emit_added();
+
+    lg2::info(
+        "CM object created at {PATH} with association to inventory {INV_PATH}",
+        "PATH", objectPath, "INV_PATH", fruPath);
 }
 
 sdbusplus::async::task<> CMObject::execute(bool isRemove,
